@@ -1,5 +1,5 @@
 import React from 'react';
-import MainComponents from './components/MainComponents';
+import MainComponent from './components/MainComponent';
 import {Provider} from 'react-redux';
 import {ConfigureStore} from './redux/configureStore';
 
@@ -8,7 +8,7 @@ class App extends React.Component {
   render() {
     return (
       <Provider store={store}>
-        <MainComponents />
+        <MainComponent />
       </Provider>
     );
   }

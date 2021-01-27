@@ -9,19 +9,20 @@ import {
 } from '@react-navigation/bottom-tabs';
 import {connect} from 'react-redux';
 
-import {fetchDishes, fetchAllUser} from '../redux/ActionCreators';
-import MenuComponents from './HomeDisplay/MenuComponent';
+import {
+  fetchDishes,
+  fetchAllUser,
+  fetchComments,
+  fetchFavorites,
+} from '../redux/ActionCreators';
 import DishesDetailsComponent from './PublicComponents/DishesDetailsComponent';
 import CategoryDetailComponent from './PublicComponents/CategoryDetailComponent';
 import HomeComponent from './HomeDisplay/HomeComponent';
 import FirstComponent from './LoginDisplay/FirstComponent';
 import LoginComponent from './LoginDisplay/LoginComponent';
 import RegisterComponent from './LoginDisplay/RegisterComponent';
-import ReservationComponent from './ReservationDisplay/ReservationComponent';
 import TableComponent from './ReservationDisplay/TableComponent';
-//Admin Component
-import ManageTableComponent from './Admin/ManageTableComponent';
-import ManageReservationComponent from './Admin/ManageReservationComponent';
+import UserComponent from './UserDisplay/UserComponent';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -35,55 +36,12 @@ const mapStateToProps = (state) => {
 const mapDispatchToProps = (dispatch) => {
   return {
     fetchDishes: () => dispatch(fetchDishes()),
-    // fetchUsers: () => dispatch(fetchUsers()),
     fetchAllUser: () => dispatch(fetchAllUser()),
+    fetchComments: () => dispatch(fetchComments()),
+    fetchFavorites: () => dispatch(fetchFavorites()),
   };
 };
 //admin stack
-
-function MenuNavigator() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-      initialRouteName="Menu">
-      <Stack.Screen name="Menu" component={MenuComponents} />
-    </Stack.Navigator>
-  );
-}
-
-function HomeNavigator() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}>
-      <Stack.Screen name="Home" component={HomeComponent} />
-    </Stack.Navigator>
-  );
-}
-function ReservationNavigator() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}>
-      <Stack.Screen name="Reservation" component={ReservationComponent} />
-    </Stack.Navigator>
-  );
-}
-
-function TableNavigator() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}>
-      <Stack.Screen name="Table" component={TableComponent} />
-    </Stack.Navigator>
-  );
-}
 
 function LoginNavigator() {
   return (
@@ -106,10 +64,11 @@ function TabBarNavigator() {
           <BottomTabBar {...props} />
         </View>
       )}
+      //14213d e63946
       tabBarOptions={{
         tabStyle: {backgroundColor: 'transparent'},
         style: {},
-        activeTintColor: '#e63946',
+        activeTintColor: '#14213d',
         labelStyle: {
           fontSize: 14,
         },
@@ -117,7 +76,7 @@ function TabBarNavigator() {
       initialRouteName="HomeStack">
       <Tab.Screen
         name="HomeStack"
-        component={HomeNavigator}
+        component={HomeComponent}
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({tintColor}) => (
@@ -126,28 +85,23 @@ function TabBarNavigator() {
         }}
       />
       <Tab.Screen
-        name="MenuStack"
-        component={MenuNavigator}
+        name="UserStack"
+        component={UserComponent}
         options={{
-          tabBarLabel: 'Menu',
+          tabBarLabel: 'Home',
           tabBarIcon: ({tintColor}) => (
-            <Icon name="menu" type="feather" size={30} color={tintColor} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="ReservationStack"
-        component={ReservationNavigator}
-        options={{
-          tabBarLabel: 'Other',
-          tabBarIcon: ({tintColor}) => (
-            <Icon name="cast" type="feather" size={30} color={tintColor} />
+            <Icon
+              name="account-circle"
+              style="material"
+              size={30}
+              color={tintColor}
+            />
           ),
         }}
       />
       <Tab.Screen
         name="TableStack"
-        component={TableNavigator}
+        component={TableComponent}
         options={{
           tabBarLabel: 'Reservation',
           tabBarIcon: ({tintColor}) => (
@@ -159,29 +113,12 @@ function TabBarNavigator() {
   );
 }
 //Admin TabBar
-function AdminTabBarNavigator() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-      initialRouteName="ManageTableStack">
-      <Stack.Screen
-        name="ManageTableStack"
-        component={ManageTableComponent}
-      />
-      <Stack.Screen
-        name="ManageReservationStack"
-        component={ManageReservationComponent}
-      />
-    </Stack.Navigator>
-  );
-}
 
 class MainComponent extends React.Component {
   componentDidMount() {
     this.props.fetchDishes();
-    // this.props.fetchUsers();
+    this.props.fetchComments();
+    this.props.fetchFavorites();
     this.props.fetchAllUser();
   }
 
@@ -195,7 +132,6 @@ class MainComponent extends React.Component {
           }}>
           <Stack.Screen name="Login" component={LoginNavigator} />
           <Stack.Screen name="TabBar" component={TabBarNavigator} />
-          <Stack.Screen name="AdminTabBar" component={AdminTabBarNavigator} />
           <Stack.Screen
             name="DishesCategory"
             component={CategoryDetailComponent}

@@ -10,28 +10,59 @@ import {
   Modal,
   TextInput,
   Alert,
+  Image,
 } from 'react-native';
-import {Icon} from 'react-native-elements';
+import {Icon, Rating} from 'react-native-elements';
 import {connect} from 'react-redux';
-import {baseUrl} from '../../shared/baseUrl';
-import {postBill} from '../../redux/ActionCreators';
-import {updateBill} from '../../redux/ActionCreators';
+import {
+  postComment,
+  addLocalFavorites,
+  addFavorite,
+  deleteFavorite,
+  addBill,
+} from '../../redux/ActionCreators';
+//import gradient
+import LinearGradient from 'react-native-linear-gradient';
+//axios
+import axios from 'axios';
+//comment
+import {
+  CommentsUrl,
+  CartUrl,
+  DeleteFavoriteUrl,
+  AddFavoriteUrl,
+} from '../../shared/baseUrl';
 
 const mapStateToProps = (state) => {
   return {
     dishes: state?.dishes,
     bills: state.bills,
+    comments: state.comments,
+    favorites: state.favorites,
+    users: state.users,
+    user: state.user,
   };
 };
 const mapDispatchToProps = (dispatch) => {
   return {
-    postBillReservation: (dish, amount) => dispatch(postBill(dish, amount)),
-    updateBillReservation: (dish, amount) =>
-      dispatch(updateBill(dish, amount)),
+    postComment: (dishId, rating, comment, name) =>
+      dispatch(postComment(dishId, rating, comment, name)),
+    addLocalFavorites: (dishes) => dispatch(addLocalFavorites(dishes)),
+    addFavorite: (dish) => dispatch(addFavorite(dish)),
+    deleteFavorite: (dish) => dispatch(deleteFavorite(dish)),
+    addBill: (dish) => dispatch(addBill(dish)),
   };
 };
 
-function DisplayModal({visible, toggleModal, comment, onChangeCommentsText}) {
+function DisplayModal({
+  visible,
+  toggleModal,
+  comment,
+  onChangeCommentsText,
+  comments,
+  onRatingComment,
+  onPostComment,
+}) {
   return (
     <Modal
       visible={visible}
@@ -41,11 +72,11 @@ function DisplayModal({visible, toggleModal, comment, onChangeCommentsText}) {
       onRequestClose={toggleModal}>
       <View
         style={{
-          height: 500,
+          height: 530,
           width: '100%',
           backgroundColor: 'white',
           position: 'absolute',
-          top: 302,
+          top: 270,
         }}>
         <View
           style={{
@@ -66,7 +97,10 @@ function DisplayModal({visible, toggleModal, comment, onChangeCommentsText}) {
 
             elevation: 7,
           }}>
-          <Text style={{fontSize: 20, color: '#8157de'}}>Comments</Text>
+          <Text
+            style={{fontSize: 20, color: '#8157de', fontFamily: FONT_NORMAL}}>
+            Comments
+          </Text>
           <Icon
             name={'close'}
             style="font-awesome"
@@ -80,7 +114,22 @@ function DisplayModal({visible, toggleModal, comment, onChangeCommentsText}) {
             flexDirection: 'row',
             justifyContent: 'center',
             alignItems: 'center',
-            padding: 20,
+            marginTop: 5,
+          }}>
+          <Rating
+            imageSize={15}
+            startingValue={5}
+            showRating
+            onFinishRating={onRatingComment}
+          />
+        </View>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            marginBottom: 10,
           }}>
           <TextInput
             placeholder="type your comment"
@@ -93,6 +142,7 @@ function DisplayModal({visible, toggleModal, comment, onChangeCommentsText}) {
             onChangeText={onChangeCommentsText}
           />
           <TouchableOpacity
+            onPress={onPostComment}
             style={{
               flexBasis: 100,
               backgroundColor: '#8157de',
@@ -104,17 +154,61 @@ function DisplayModal({visible, toggleModal, comment, onChangeCommentsText}) {
             <Text style={{color: 'white'}}>POST</Text>
           </TouchableOpacity>
         </View>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: 20,
-          }}>
-          <Text style={{width: 70, fontWeight: 'bold', fontSize: 18}}>
-            Author
-          </Text>
-          <Text style={{flexGrow: 1, fontSize: 14}}>nice!</Text>
-        </View>
+        {comments.length > 0 ? (
+          <>
+            {comments.map((comment, index) => {
+              return (
+                <View
+                  key={index}
+                  style={{
+                    paddingHorizontal: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}>
+                  <Text
+                    style={{
+                      width: 70,
+                      fontWeight: 'bold',
+                      fontSize: 20,
+                    }}>
+                    {comment.userName}
+                  </Text>
+                  <View
+                    style={{
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginHorizontal: 10,
+                    }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        color: '#f1c40f',
+                      }}>{`${comment.rating}/5`}</Text>
+                    <Rating
+                      imageSize={12}
+                      startingValue={Number(comment.rating)}
+                      readonly={true}
+                    />
+                  </View>
+                  <Text style={{flexGrow: 1, fontSize: 18, color: '#a6a8ab'}}>
+                    {comment.comment}
+                  </Text>
+                </View>
+              );
+            })}
+          </>
+        ) : (
+          <View
+            style={{
+              paddingHorizontal: 20,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}>
+            <Text style={{fontSize: 20, color: '#a6a8ab'}}>
+              Chưa có đánh giá nào
+            </Text>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -123,9 +217,10 @@ function DisplayModal({visible, toggleModal, comment, onChangeCommentsText}) {
 function ReservationModal({
   toggleModalReservation,
   visible,
-  amount,
   dish,
   postBillToState,
+  user,
+  navigateLogin,
 }) {
   return (
     <Modal
@@ -159,19 +254,9 @@ function ReservationModal({
             paddingHorizontal: 20,
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             backgroundColor: 'white',
-            shadowColor: '#000',
-            shadowOffset: {
-              width: 0,
-              height: 3,
-            },
-            shadowOpacity: 0.29,
-            shadowRadius: 4.65,
-
-            elevation: 7,
           }}>
-          <Text style={{fontSize: 20, color: '#8157de'}}>Reservation</Text>
           <Icon
             name={'close'}
             style="font-awesome"
@@ -180,33 +265,153 @@ function ReservationModal({
             onPress={toggleModalReservation}
           />
         </View>
-        <View style={{paddingHorizontal: 20, paddingVertical: 20}}>
-          <View>
-            <Text
-              style={{
-                fontSize: 25,
-                color: '#a6a8ab',
-              }}>{`Bạn muốn đặt ${amount} phần ${dish}`}</Text>
+        {user ? (
+          <View style={{paddingHorizontal: 20, paddingVertical: 20}}>
+            <View>
+              <Text
+                style={{
+                  fontSize: 25,
+                  color: 'black',
+                }}>{`Bạn muốn đặt ${dish}`}</Text>
+            </View>
+            <View style={{marginTop: 20, alignItems: 'flex-end'}}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#8157de',
+                  width: 60,
+                  height: 40,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 20,
+                }}
+                onPress={postBillToState}>
+                <Text style={{fontSize: 20, color: 'white'}}>OK</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={{marginTop: 20, alignItems: 'flex-end'}}>
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#8157de',
-                width: 60,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 20,
-              }}
-              onPress={postBillToState}>
-              <Text style={{fontSize: 20, color: 'white'}}>OK</Text>
-            </TouchableOpacity>
+        ) : (
+          <View style={{paddingHorizontal: 20, paddingVertical: 20}}>
+            <View>
+              <Text
+                style={{
+                  fontSize: 25,
+                  color: 'black',
+                }}>{`Bạn chưa đăng nhập?`}</Text>
+              <Text
+                style={{
+                  fontSize: 20,
+                  color: 'black',
+                }}>{`Bạn có muốn chuyển sang trang Đăng nhập?`}</Text>
+            </View>
+            <View style={{marginTop: 20, alignItems: 'flex-end'}}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#8157de',
+                  width: 60,
+                  height: 40,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 20,
+                }}
+                onPress={navigateLogin}>
+                <Text style={{fontSize: 20, color: 'white'}}>OK</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
       </View>
     </Modal>
   );
 }
+
+function RenderItemDishes(props) {
+  var totalRating = 0;
+  var numberOfComments = 0;
+  if (props.comments.length > 0) {
+    for (let comment of props.comments) {
+      totalRating = totalRating + parseInt(comment.rating);
+      numberOfComments = numberOfComments + 1;
+    }
+  }
+  return (
+    <View style={styles.viewMenuContain}>
+      <TouchableOpacity
+        style={{
+          width: 160,
+          marginHorizontal: 20,
+        }}
+        onPress={() => {
+          props.onPress();
+        }}>
+        <View
+          style={{
+            flex: 2,
+            backgroundColor: COLOR5,
+            borderRadius: borderRadiusOfItem,
+            shadowColor: '#000',
+            shadowOffset: {
+              width: 0,
+              height: 1,
+            },
+            shadowOpacity: 0.2,
+            shadowRadius: 1.41,
+
+            elevation: 2,
+          }}>
+          <Image
+            style={{
+              flex: 1,
+              width: null,
+              height: 160,
+              resizeMode: 'cover',
+              borderRadius: borderRadiusOfItem,
+            }}
+            source={{uri: props.uri}}
+          />
+        </View>
+        <View
+          style={{
+            flex: 1,
+            paddingTop: 10,
+            paddingLeft: 10,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+          <Text
+            style={{fontSize: 18, fontFamily: FONT_NORMAL}}
+            numberOfLines={1}>
+            {props.name.toUpperCase()}
+          </Text>
+          <Text style={{fontSize: 15}}>{props.price}</Text>
+          {props.comments.length > 0 ? (
+            <>
+              <Text style={{fontSize: 15, color: '#f1c40f'}}>{`${(
+                totalRating / numberOfComments
+              ).toFixed(1)}/5`}</Text>
+              {totalRating !== 0 ? (
+                <Rating
+                  imageSize={10}
+                  startingValue={Number(
+                    (totalRating / numberOfComments).toFixed(1),
+                  )}
+                  readonly={true}
+                />
+              ) : (
+                <View></View>
+              )}
+            </>
+          ) : (
+            <>
+              <Text style={{fontSize: 15, color: '#f1c40f'}}>{`5/5`}</Text>
+              <Rating imageSize={10} startingValue={5} readonly={true} />
+            </>
+          )}
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 class DishesDetailsComponent extends React.Component {
   constructor(props) {
     super(props);
@@ -215,11 +420,15 @@ class DishesDetailsComponent extends React.Component {
       showModal: false,
       showReservation: false,
       amountRender: '1',
+      ratingComment: 5,
     };
 
     this.comment = React.createRef();
   }
 
+  componentDidMount() {
+    this.addDataLocalFavorites();
+  }
   toggleModal() {
     if (this.comment.current) {
       Alert.alert(
@@ -262,17 +471,21 @@ class DishesDetailsComponent extends React.Component {
   }
 
   onChangeAmountText(text) {
-    this.setState({
-      amountRender: text,
-    });
+    if (parseInt(text) >= 0) {
+      this.setState({
+        amountRender: text,
+      });
+    }
   }
 
   onReduceAmountText() {
     let reduce = parseInt(this.state.amountRender);
     reduce -= 1;
-    this.setState({
-      amountRender: reduce.toString(),
-    });
+    if (reduce >= 0) {
+      this.setState({
+        amountRender: reduce.toString(),
+      });
+    }
   }
 
   onIncreaseAmountText() {
@@ -283,19 +496,173 @@ class DishesDetailsComponent extends React.Component {
     });
   }
 
+  filterComments(dish_id) {
+    let comments = this.props.comments.comments;
+    let valueComment = comments.filter((comment) => {
+      return comment.dishId === dish_id;
+    });
+    if (valueComment) {
+      return valueComment;
+    } else {
+      return '0';
+    }
+  }
+
+  onRatingComment(rating) {
+    console.log(rating);
+    this.setState({
+      ratingComment: rating,
+    });
+  }
+
+  async onPostComment(dishId, rating, comment, name = '') {
+    if (this.props.user.user) {
+      console.log(CommentsUrl + '/' + this.props.user.user.id);
+
+      await axios.post(CommentsUrl + '/' + this.props.user.user.id, {
+        dishId,
+        rating,
+        comment,
+      });
+      this.props.postComment(dishId, rating, comment, name);
+    } else {
+      Alert.alert(
+        'Chưa đăng nhập',
+        'Bạn có muốn đăng nhập không?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'OK',
+            onPress: () => {
+              this.comment.current = '';
+              this.setState({
+                showModal: !this.state.showModal,
+              });
+              this.props.navigation.navigate('Login');
+            },
+          },
+        ],
+        {cancelable: false},
+      );
+    }
+  }
+
+  async postToCart(userId, dishId) {
+    if (this.props.user.user) {
+      console.log(CartUrl + userId);
+      this.props.addBill(dishId);
+      axios
+        .post(CartUrl + userId, {
+          dishesId: dishId,
+        })
+        .then((res) => {
+          if (res.data === 'ok') {
+            Alert.alert(
+              'Đặt món thành công',
+              '',
+              [
+                {
+                  text: 'OK',
+                  style: 'cancel',
+                },
+              ],
+              {
+                cancelable: false,
+              },
+            );
+          }
+        });
+    }
+  }
+
+  addDataLocalFavorites() {
+    if (this.props.user.user) {
+      let listFavorites = this.props.favorites.favorites.find(
+        (favorite) => favorite.userId === this.props.user.user.id,
+      );
+      this.props.addLocalFavorites(listFavorites.dishesId);
+    }
+  }
+  //check favorites
+  checkPropsFavorite(favorites, user, dishId) {
+    if (user) {
+      return favorites.localFavorites.includes(dishId);
+    } else {
+      return false;
+    }
+  }
+
+  actionFavorite(check, dishId) {
+    switch (check) {
+      case true: {
+        this.props.deleteFavorite(dishId);
+        axios.post(`${DeleteFavoriteUrl}${this.props.user.user.id}`, {
+          dishesId: dishId,
+        });
+        break;
+      }
+      case false: {
+        this.props.addFavorite(dishId);
+        axios.post(`${AddFavoriteUrl}${this.props.user.user.id}`, {
+          dishesId: dishId,
+        });
+        break;
+      }
+    }
+  }
+
   render() {
     const {dishId} = this.props.route.params;
-    const dish = this.props.dishes.dishes.filter((dish) => dish.id === dishId);
-    console.log(dish[0].image);
+    const dish = this.props.dishes.dishes.find((dish) => dish._id === dishId);
+    const recommend = this.props.dishes.dishes.filter(
+      (el) => el._id !== dishId && el.category === dish.category,
+    );
+    const checkFavorite = this.checkPropsFavorite(
+      this.props.favorites,
+      this.props.user.user,
+      dishId,
+    );
     return (
       <SafeAreaView style={styles.container}>
         <ImageBackground
-          source={{uri: baseUrl + dish[0].image}}
-          style={styles.background}
-          imageStyle={{borderBottomLeftRadius: 65}}>
-          <Text style={styles.TextInBackgroundCategory}>Món Chính</Text>
-          <Text style={styles.TextInBackgroundName}>{dish[0].name}</Text>
-        </ImageBackground>
+          source={{uri: dish.image}}
+          style={styles.background}></ImageBackground>
+        {/* view background color gradient */}
+
+        {/* View button favorite */}
+        <LinearGradient
+          colors={['#f8f9fa', '#FFFFFF00']}
+          style={{
+            position: 'absolute',
+            top: 0,
+            height: 60,
+            width: '100%',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 20,
+            paddingBottom: 15,
+          }}>
+          <TouchableOpacity onPress={() => this.props.navigation.goBack()}>
+            <Icon name="arrow-back" type="material" size={30} color="#8157de" />
+          </TouchableOpacity>
+          {this.props.user.user ? (
+            <TouchableOpacity>
+              <Icon
+                name={checkFavorite ? 'favorite' : 'favorite-border'}
+                type="material"
+                size={30}
+                color="#8157de"
+                onPress={() => this.actionFavorite(checkFavorite, dishId)}
+              />
+            </TouchableOpacity>
+          ) : (
+            <View></View>
+          )}
+        </LinearGradient>
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => {
@@ -310,118 +677,39 @@ class DishesDetailsComponent extends React.Component {
           }}
           visible={this.state.showReservation}
           amount={this.state.amountRender}
-          dish={dish[0].name}
+          dish={dish.name}
+          user={this.props.user.user}
+          navigateLogin={() => {
+            this.props.navigation.navigate('Login');
+            this.toggleModalReservation();
+          }}
           postBillToState={() => {
-            let checkDishInBill = this.props.bills.bill.some(
-              (el) => el.dish.id === dish[0].id,
-            );
-            if (checkDishInBill) {
-              this.props.updateBillReservation(
-                dish[0],
-                this.state.amountRender,
-              );
-            } else {
-              this.props.postBillReservation(
-                dish[0],
-                this.state.amountRender,
-              );
-            }
+            this.postToCart(this.props.user.user.id, dishId);
             this.toggleModalReservation();
           }}
         />
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            alignSelf: 'center',
-          }}>
-          <TouchableOpacity
-            style={{
-              height: 60,
-              width: 60,
-              shadowColor: '#000',
-              backgroundColor: 'white',
-              shadowOffset: {
-                width: 0,
-                height: 1,
-              },
-              shadowOpacity: 0.18,
-              shadowRadius: 1.0,
-
-              elevation: 1,
-
-              borderTopLeftRadius: 20,
-              borderBottomLeftRadius: 20,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onPress={() => {
-              this.onReduceAmountText();
-            }}>
-            <Text style={{fontSize: 30, alignSelf: 'center', color: '#8157de'}}>
-              -
-            </Text>
-          </TouchableOpacity>
-          <TextInput
-            placeholder="1"
-            placeholderTextColor="#8157de"
-            keyboardType="numeric"
-            value={this.state.amountRender}
-            onChangeText={(text) => {
-              this.onChangeAmountText(text);
-            }}
-            defaultValue="1"
-            style={{
-              textAlign: 'center',
-              backgroundColor: 'white',
-              color: '#8157de',
-              height: 60,
-              width: 70,
-              fontSize: 20,
-              shadowColor: '#000',
-              shadowOffset: {
-                width: 0,
-                height: 1,
-              },
-              shadowOpacity: 0.18,
-              shadowRadius: 1.0,
-
-              elevation: 1,
-            }}
-          />
-          <TouchableOpacity
-            style={{
-              height: 60,
-              width: 60,
-              shadowColor: '#000',
-              backgroundColor: 'white',
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowOffset: {
-                width: 0,
-                height: 1,
-              },
-              shadowOpacity: 0.18,
-              shadowRadius: 1.0,
-
-              elevation: 1,
-              borderTopRightRadius: 20,
-              borderBottomRightRadius: 20,
-            }}
-            onPress={() => this.onIncreaseAmountText()}>
-            <Text style={{fontSize: 30, alignSelf: 'center', color: '#8157de'}}>
-              +
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <View>
+        <View style={{height: 400, paddingVertical: 20}}>
           <ScrollView>
             <View style={[styles.WrapperContent]}>
-              <TouchableOpacity
-                style={[styles.DescriptionTitle, {marginTop: 40}]}>
-                <Text style={[styles.DescriptionText]}>Details</Text>
-              </TouchableOpacity>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingRight: 30,
+                  marginTop: 25,
+                }}>
+                <Text
+                  style={[
+                    styles.DescriptionContent,
+                    {fontFamily: FONT_NORMAL, fontSize: 35, color: '#8157de'},
+                  ]}>
+                  {dish.name}
+                </Text>
+                <Text style={styles.DetailsPrices}>{`${(
+                  dish.price * this.state.amountRender
+                ).toFixed(2)} $`}</Text>
+              </View>
               <View
                 style={{
                   flexDirection: 'row',
@@ -429,23 +717,30 @@ class DishesDetailsComponent extends React.Component {
                   alignItems: 'center',
                   paddingRight: 30,
                 }}>
-                <Text style={styles.DescriptionContent}>{dish[0].name}</Text>
-                <Text style={styles.DetailsPrices}>{`${dish[0].price} $`}</Text>
+                <Text style={[styles.DescriptionContent, {fontSize: 14}]}>
+                  {dish.category}
+                </Text>
               </View>
             </View>
             <View style={styles.WrapperContent}>
               <TouchableOpacity style={styles.DescriptionTitle}>
-                <Text style={[styles.DescriptionText]}>Description</Text>
+                <Text
+                  style={[styles.DescriptionText, {fontFamily: FONT_NORMAL}]}>
+                  About
+                </Text>
               </TouchableOpacity>
-              <Text style={styles.DescriptionContent}>
-                {dish[0].description}
+              <Text style={[styles.DescriptionContent, {fontSize: 20}]}>
+                {dish.description}
               </Text>
             </View>
             <View style={styles.WrapperContent}>
               <TouchableOpacity
                 style={styles.DescriptionTitle}
                 onPress={() => this.toggleModal()}>
-                <Text style={[styles.DescriptionText]}>Comments</Text>
+                <Text
+                  style={[styles.DescriptionText, {fontFamily: FONT_NORMAL}]}>
+                  Comments
+                </Text>
                 <View
                   style={{
                     flexDirection: 'row',
@@ -471,34 +766,164 @@ class DishesDetailsComponent extends React.Component {
                   />
                 </View>
               </TouchableOpacity>
-              <View
-                style={{
-                  paddingHorizontal: 20,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}>
-                <Text style={{width: 70, fontWeight: 'bold', fontSize: 18}}>
-                  Author
-                </Text>
-                <Text style={{flexGrow: 1, fontSize: 14}}>nice!</Text>
-              </View>
+              {/* comment */}
+              {this.filterComments(dishId).length > 0 ? (
+                <>
+                  {this.filterComments(dishId).map((comment, index) => {
+                    if (
+                      index < this.filterComments(dishId).length &&
+                      index > this.filterComments(dishId).length - 3
+                    ) {
+                      return (
+                        <View
+                          key={index}
+                          style={{
+                            paddingHorizontal: 20,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                          }}>
+                          <Text
+                            style={{
+                              width: 70,
+                              fontWeight: 'bold',
+                              fontSize: 20,
+                            }}>
+                            {comment.userName}
+                          </Text>
+                          <View
+                            style={{
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginHorizontal: 10,
+                            }}>
+                            <Text
+                              style={{
+                                fontSize: 15,
+                                color: '#f1c40f',
+                              }}>{`${comment.rating}/5`}</Text>
+                            <Rating
+                              imageSize={12}
+                              startingValue={Number(comment.rating)}
+                              readonly={true}
+                            />
+                          </View>
+                          <Text
+                            style={{
+                              flexGrow: 1,
+                              fontSize: 18,
+                              color: '#a6a8ab',
+                            }}>
+                            {comment.comment}
+                          </Text>
+                        </View>
+                      );
+                    }
+                  })}
+                </>
+              ) : (
+                <View
+                  style={{
+                    paddingHorizontal: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}>
+                  <Text style={{fontSize: 20, color: '#a6a8ab'}}>
+                    Chưa có đánh giá nào
+                  </Text>
+                </View>
+              )}
             </View>
             <DisplayModal
               visible={this.state.showModal}
               comment={this.comment}
+              comments={this.filterComments(dishId)}
+              onRatingComment={(rating) => this.onRatingComment(rating)}
               toggleModal={() => {
                 this.toggleModal();
               }}
               onChangeCommentsText={(text) => {
                 this.onChangeCommentsText(text);
               }}
+              onPostComment={() => {
+                if (this.props.user.user) {
+                  this.onPostComment(
+                    dishId,
+                    this.state.ratingComment.toString(),
+                    this.comment.current,
+                    this.props.user.user.name,
+                  );
+                } else {
+                  Alert.alert(
+                    'Chưa đăng nhập',
+                    'Bạn có muốn đăng nhập không?',
+                    [
+                      {
+                        text: 'Cancel',
+                        style: 'cancel',
+                      },
+                      {
+                        text: 'OK',
+                        onPress: () => {
+                          this.comment.current = '';
+                          this.setState({
+                            showModal: !this.state.showModal,
+                          });
+                          this.props.navigation.navigate('Login');
+                        },
+                      },
+                    ],
+                    {cancelable: false},
+                  );
+                }
+              }}
             />
+            {recommend.length > 0 ? (
+              <>
+                <View style={{padding: 20, marginBottom: 5}}>
+                  <Text
+                    style={{
+                      fontFamily: FONT_NORMAL,
+                      fontSize: 25,
+                      color: '#8157de',
+                    }}>
+                    Recommend Menu
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <></>
+            )}
+            <ScrollView
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}>
+              {recommend.map((item, index) => {
+                return (
+                  <RenderItemDishes
+                    key={index}
+                    uri={item.image}
+                    name={item.name}
+                    price={item.price + '$'}
+                    comments={this.filterComments(item._id)}
+                    onPress={() =>
+                      this.props.navigation.navigate('DishesDetails', {
+                        dishId: item._id,
+                      })
+                    }
+                  />
+                );
+              })}
+            </ScrollView>
           </ScrollView>
         </View>
       </SafeAreaView>
     );
   }
 }
+
+const FONT_TITLE = 'Pacifico-Regular';
+const FONT_NORMAL = 'Play-Regular';
+const COLOR5 = '#ffffff';
+const borderRadiusOfItem = 5;
 
 const styles = StyleSheet.create({
   container: {
@@ -526,14 +951,24 @@ const styles = StyleSheet.create({
     left: 20,
   },
   ReserveBackground: {
-    borderBottomLeftRadius: 25,
     backgroundColor: '#8157de',
-    width: 120,
-    height: 40,
+    width: 350,
+    height: 60,
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    top: -20,
-    left: 300,
+    position: 'absolute',
+    bottom: 20,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.32,
+    shadowRadius: 5.46,
+
+    elevation: 9,
   },
   ReserveText: {
     color: 'white',
@@ -551,14 +986,12 @@ const styles = StyleSheet.create({
   },
   DescriptionText: {
     color: '#8157de',
-    fontSize: 30,
+    fontSize: 25,
   },
   DescriptionContent: {
-    fontSize: 20,
     color: '#a6a8ab',
-    paddingHorizontal: 20,
+    paddingLeft: 20,
     flex: 1,
-    textAlign: 'justify',
   },
   WrapperContent: {
     width: '100%',
@@ -567,7 +1000,6 @@ const styles = StyleSheet.create({
   },
   DetailsPrices: {
     fontSize: 40,
-    color: '#8157de',
   },
 });
 export default connect(

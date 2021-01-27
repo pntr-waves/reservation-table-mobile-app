@@ -2,7 +2,7 @@ import * as ActionTypes from './ActionTypes';
 
 export const user = (
   state = {
-    user: {},
+    user: null,
     errorMess: null,
     isLoading: true,
   },
@@ -18,10 +18,10 @@ export const user = (
       };
     }
     case ActionTypes.FAILED_USER: {
-      return {...state, user: {}, errorMess: action.payload, isLoading: false};
+      return {...state, user: null, errorMess: action.payload, isLoading: false};
     }
     case ActionTypes.LOADING_USER: {
-      return {...state, user: {}, errorMess: null, isLoading: true};
+      return {...state, user: null, errorMess: null, isLoading: true};
     }
     default: {
       return state;

@@ -9,16 +9,18 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ToastAndroid,
+  Alert,
 } from 'react-native';
 import {connect} from 'react-redux';
 import {
   fetchUsers,
   loadingUser,
   failedUser,
-  addDishes,
+  fetchRecommend,
   addUser,
+  fetchBills,
 } from '../../redux/ActionCreators';
-import { StackActions, Navi } from '@react-navigation/native';
+
 import axios from 'axios';
 
 import {Loading} from '../PublicComponents/LoadingComponent';
@@ -26,6 +28,8 @@ import {Loading} from '../PublicComponents/LoadingComponent';
 const mapStateToProps = (state) => {
   return {
     user: state.user,
+    dishes: state.dishes,
+    bills: state.bills,
   };
 };
 const mapDispatchToProps = (dispatch) => {
@@ -34,6 +38,8 @@ const mapDispatchToProps = (dispatch) => {
     failedUser: (errorMess) => dispatch(failedUser(errorMess)),
     loadingUser: () => dispatch(loadingUser()),
     addUser: (user) => dispatch(addUser(user)),
+    fetchRecommend: (userId) => dispatch(fetchRecommend(userId)),
+    fetchBills: (userId) => dispatch(fetchBills(userId)),
   };
 };
 const BackgroundLogin = '../../shared/img/BackgroundLogin.png';
@@ -114,15 +120,30 @@ class LoginComponent extends React.Component {
           }),
         );
 
-        this.props.fetchUsers(this.email.current, this.password.current);
-        
-        console.log("user"+this.props.user.user._id )
-        if (this.props.user.user !== {}) {
-          const resetAction = StackActions.reset({
-            index: 0,
-            actions: [this.props.navigation.navigate('TabBar')],
-          });
-          this.props.navigation.dispatch(resetAction);
+        await this.props.fetchUsers(this.email.current, this.password.current);
+
+        if (this.props.user.user) {
+          if (this.props.dishes.recommend.length === 0) {
+            await this.props.fetchRecommend(this.props.user.user.id);
+          }
+          if (this.props.bills.bills.length === 0) {
+            await this.props.fetchBills(this.props.user.user.id);
+          }
+          console.log(this.props.user.user.id);
+          this.props.navigation.navigate('TabBar');
+        } else {
+          Alert.alert(
+            'Đăng nhập thất bại',
+            this.props.user.errorMess,
+            [
+              {
+                text: 'OK',
+                onPress: () => this.props.navigation.navigate('First'),
+                style: 'cancel',
+              },
+            ],
+            {cancelable: false},
+          );
         }
       }
     }
@@ -173,7 +194,6 @@ class LoginComponent extends React.Component {
                   this.email = ref;
                 }}
                 onChangeText={(text) => {
-                  console.log(this.email);
                   this.onChangeEmailText(text);
                 }}
                 value={this.email.current}
@@ -206,8 +226,8 @@ class LoginComponent extends React.Component {
                 ref={(ref) => {
                   this.password = ref;
                 }}
+                secureTextEntry={true}
                 onChangeText={(text) => {
-                  console.log(this.password);
                   this.onChangePasswordText(text);
                 }}
                 value={this.password.current}
